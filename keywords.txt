@@ -1,0 +1,21 @@
+# ServoGroup Library Keywords
+# Syntax Coloring Map For ServoGroup
+
+# Datatypes (KEYWORD1)
+ServoGroup	KEYWORD1
+
+# Methods and Functions (KEYWORD2)
+init	KEYWORD2
+setPosition	KEYWORD2
+setPositions	KEYWORD2
+update	KEYWORD2
+getServoJson	KEYWORD2
+getPositionsJson	KEYWORD2
+getCurrentPositions	KEYWORD2
+getGoalPositions	KEYWORD2
+getState	KEYWORD2
+
+# Constants (LITERAL1)
+IDLE	LITERAL1
+MOVING	LITERAL1
+DETACHED	LITERAL1 
