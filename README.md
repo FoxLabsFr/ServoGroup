@@ -1,6 +1,10 @@
 # ServoGroup Library
 
-ServoGroup is an Arduino library for controlling multiple servos using an I2C-based PWM driver, such as the Adafruit PCA9685, or our [Servo_Controller](https://github.com/FoxLabsFr/Servo_Controller) board. It provides an easy-to-use interface for configuring and controlling servo motors in groups.
+ServoGroup is an Arduino library for controlling multiple servos simultaneously using linear interpolation. You can send an array of positions and smoothly drive all the servos in the group to their targets within a specified timing.
+
+It currently supports two types of servo groups:
+- **I2C-based servos** using a PCA9685 board
+- **Standard PWM servos** connected directly to I/O pins
 
 ## 🚀 Features
 
@@ -9,7 +13,7 @@ ServoGroup is an Arduino library for controlling multiple servos using an I2C-ba
 - [x] **Position tracking** and state management
 - [x] **Individual servo configuration** with min/max limits, offsets, and inversion
 - [x] **Direct JSON status output** for easy integration with web interfaces
-- [x] **Support classic PWM servo**
+- [x] **Support Standard PWM servo**
 - [ ] **Support mixed groups (I2C driven servo and classic PWM servo)**
 - [ ] **Support multiple servo groups in one project with IDs**
 
@@ -17,7 +21,7 @@ ServoGroup is an Arduino library for controlling multiple servos using an I2C-ba
 
 **Required Hardware:**
 
-- **PCA9685 PWM Servo Driver** - Controls the servo motors via I2C communication
+- **PCA9685 PWM Servo Driver** - (For I2C mode).
 - **Arduino-compatible board** - ESP32, Arduino Uno, etc.
 
 ## 🛠️ Getting Started
@@ -39,8 +43,6 @@ lib_deps =
 
 ### 💡 Basic Examples
 
-#### I2C Mode Example (using PCA9685)
-
 ```cpp
 #include <ServoGroup.h>
 
@@ -51,52 +53,18 @@ void setup() {
   servoGroup1.setIds(0x40, {0, 1, 2, 3, 4});
   servoGroup1.setDefaultPosition({0, 1750, 1373, 950, 900});
 
-  // Optional config
-  servoGroup1.setMinPulse({150, 150, 150, 150, 150});
-  servoGroup1.setMaxPulse({600, 600, 600, 600, 600});
-  servoGroup1.setOffsets({-137, 74, -117, -169, -6});
-  servoGroup1.setInverts({-1, 1, 1, -1, 1});
-
-  // Optional: Set soft angle limits (restrict usable range)
-  // servoGroup1.setMinAngles({200, 200, 200, 200, 200});  // 20° minimum
-  // servoGroup1.setMaxAngles({1600, 1600, 1600, 1600, 1600});  // 160° maximum
-
-  // Init servo at default position
-  servoGroup1.init();
-
-  // Optional: Enable debug logging
-  servoGroup1.init(Serial);
-}
-
-void loop() {
-  servoGroup1.update();
-}
-```
-
-#### Direct PWM Mode Example (using GPIO pins)
-
-```cpp
-#include <ServoGroup.h>
-
-ServoGroup servoGroup1;
-
-void setup() {
   // Direct PWM Mode (using GPIO pins)
   // For ESP8266: use D0, D1, D2, D3, D4
-  servoGroup1.setIds("pwm", {D0, D1, D2, D3, D4});
+  // servoGroup1.setIds("pwm", {D0, D1, D2, D3, D4});
 
   // For Arduino: use 2, 3, 4, 5, 6
   // servoGroup1.setIds("pwm", {2, 3, 4, 5, 6});
 
-  servoGroup1.setDefaultPosition({900, 900, 900, 900, 900});
-
   // Optional config
-  servoGroup1.setMinPulse({150, 150, 150, 150, 150});
-  servoGroup1.setMaxPulse({600, 600, 600, 600, 600});
-  servoGroup1.setOffsets({-137, 74, -117, -169, -6});
-  servoGroup1.setInverts({-1, 1, 1, -1, 1});
-
-  // Optional: Set soft angle limits (restrict usable range)
+  // servoGroup1.setMinPulse({150, 150, 150, 150, 150});
+  // servoGroup1.setMaxPulse({600, 600, 600, 600, 600});
+  // servoGroup1.setOffsets({-137, 74, -117, -169, -6});
+  // servoGroup1.setInverts({-1, 1, 1, -1, 1});
   // servoGroup1.setMinAngles({200, 200, 200, 200, 200});  // 20° minimum
   // servoGroup1.setMaxAngles({1600, 1600, 1600, 1600, 1600});  // 160° maximum
 
