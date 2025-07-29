@@ -6,6 +6,14 @@ ServoGroup	KEYWORD1
 
 # Methods and Functions (KEYWORD2)
 init	KEYWORD2
+setIds	KEYWORD2
+setDefaultPosition	KEYWORD2
+setMinPulse	KEYWORD2
+setMaxPulse	KEYWORD2
+setMinAngles	KEYWORD2
+setMaxAngles	KEYWORD2
+setOffsets	KEYWORD2
+setInverts	KEYWORD2
 setPosition	KEYWORD2
 setPositions	KEYWORD2
 update	KEYWORD2
@@ -14,6 +22,8 @@ getPositionsJson	KEYWORD2
 getCurrentPositions	KEYWORD2
 getGoalPositions	KEYWORD2
 getState	KEYWORD2
+detach	KEYWORD2
+detachAll	KEYWORD2
 
 # Constants (LITERAL1)
 IDLE	LITERAL1
