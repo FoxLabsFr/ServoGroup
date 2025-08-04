@@ -314,7 +314,19 @@ void ServoGroup::applyPosition(uint8_t servo_index, int16_t angle) {
 
 void ServoGroup::setPosition(uint8_t servo_index, int16_t angle, unsigned long delay) {
   if (servo_index < num_servos && angle != (int16_t)-1) {
-    // Reset detached state if servo was previously detached
+    // Check if servo was previously detached and reattach if needed
+    if (detachedServos[servo_index]) {
+      if (mode == Mode::DIRECT_PWM) {
+        // Reattach servo for PWM mode
+        debugLog("Reattaching servo " + String(servo_index) + " (PWM mode)");
+        servos[servo_index].attach(servoPins[servo_index], servoMinPulse[servo_index], servoMaxPulse[servo_index]);
+      } else {
+        // For I2C mode, no reattachment needed - just start sending PWM signals again
+        debugLog("Reattaching servo " + String(servo_index) + " (I2C mode)");
+      }
+    }
+    
+    // Reset detached state
     detachedServos[servo_index] = false;
     
     // Apply soft angle limits
@@ -343,7 +355,19 @@ void ServoGroup::setPosition(uint8_t servo_index, int16_t angle, unsigned long d
 void ServoGroup::setPositions(int16_t angles[], unsigned long delay) {
   for (int i = 0; i < num_servos; i++) {
     if (angles[i] != (int16_t)-1) {
-      // Reset detached state if servo was previously detached
+      // Check if servo was previously detached and reattach if needed
+      if (detachedServos[i]) {
+        if (mode == Mode::DIRECT_PWM) {
+          // Reattach servo for PWM mode
+          debugLog("Reattaching servo " + String(i) + " (PWM mode)");
+          servos[i].attach(servoPins[i], servoMinPulse[i], servoMaxPulse[i]);
+        } else {
+          // For I2C mode, no reattachment needed - just start sending PWM signals again
+          debugLog("Reattaching servo " + String(i) + " (I2C mode)");
+        }
+      }
+      
+      // Reset detached state
       detachedServos[i] = false;
       
       // Apply soft angle limits
