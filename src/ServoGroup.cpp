@@ -473,6 +473,7 @@ void ServoGroup::update() {
   state = allIdle ? State::IDLE : State::MOVING;
 }
 
+#ifndef SERVOGROUP_DISABLE_JSON
 String ServoGroup::getServoJson() {
   String json = "{\"type\":\"servogroup\",\"state\":\"";
   
@@ -513,6 +514,7 @@ String ServoGroup::getPositionsJson() {
   json += "]";
   return json;
 }
+#endif
 
 int16_t* ServoGroup::getCurrentPositions() { return position; }
 

@@ -190,8 +190,11 @@ class ServoGroup {
   void detachAll();
   void update();
 
+#ifndef SERVOGROUP_DISABLE_JSON
   String getServoJson();
   String getPositionsJson();
+#endif
+
   int16_t* getCurrentPositions();
   int16_t* getGoalPositions();
   State getState();

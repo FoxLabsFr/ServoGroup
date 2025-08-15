@@ -3,6 +3,7 @@
 ServoGroup is an Arduino library for controlling multiple servos simultaneously using linear interpolation. You can send an array of positions and smoothly drive all the servos in the group to their targets within a specified timing.
 
 It currently supports two types of servo groups:
+
 - **I2C-based servos** using a PCA9685 board
 - **Standard PWM servos** connected directly to I/O pins
 
@@ -131,6 +132,16 @@ This approach ensures that your program remains responsive while performing peri
 
 ```cpp
 ServoGroup()
+```
+
+### 🔧 Configuration Options
+
+#### JSON Interface (Optional)
+
+The library includes JSON interface methods that are enabled by default but can be disabled to save RAM:
+
+```cpp
+#define SERVOGROUP_DISABLE_JSON
 ```
 
 ### ⚙️ Initialization Methods
