@@ -89,6 +89,9 @@ void ServoGroup::setIds(uint8_t i2c_address, uint8_t ids[], uint8_t count) {
   mode = Mode::I2C;
   this->i2c_address = i2c_address;
   
+  // Re-initialize PWM driver with correct I2C address
+  pwm = Adafruit_PWMServoDriver(i2c_address);
+  
   // Allocate arrays if not already done
   if (num_servos == 0) {
     allocateArrays(count);
@@ -186,13 +189,23 @@ void ServoGroup::init() {
   }
   
   if (mode == Mode::I2C) {
-    Wire.begin();
+    // Only initialize Wire once - it's a global singleton
+    static bool wireInitialized = false;
+    if (!wireInitialized) {
+      Wire.begin();
+      wireInitialized = true;
+    }
 
     // Check if the PWM driver is connected
     Wire.beginTransmission(i2c_address);
     if (Wire.endTransmission() == 0) {
-      // PWM driver found
+      if (debugMode) {
+        debugLog("PWM driver 0x" + String(i2c_address, HEX) + " found on I2C bus.");
+      }
     } else {
+      if (debugMode) {
+        debugLog("Error: PWM driver not found on I2C bus!");
+      }
       return;
     }
 
@@ -236,48 +249,8 @@ void ServoGroup::init(Stream& debugStream) {
     return;
   }
   
-  if (mode == Mode::I2C) {
-    Wire.begin();
-
-    // Check if the PWM driver is connected
-    Wire.beginTransmission(i2c_address);
-    if (Wire.endTransmission() == 0) {
-      debugLog("PWM driver 0x" + String(i2c_address, HEX) + " found on I2C bus.");
-    } else {
-      debugLog("Error: PWM driver not found on I2C bus!");
-      return;
-    }
-
-    pwm.begin();
-    pwm.setPWMFreq(60);
-    pwm.setOscillatorFrequency(27000000);
-  } else {
-    // Direct PWM mode
-
-    for (int i = 0; i < num_servos; i++) {
-      servos[i].attach(servoPins[i], servoMinPulse[i], servoMaxPulse[i]);
-    }
-  }
-
-  // Initialize movement tracking arrays
-  for (int i = 0; i < num_servos; i++) {
-    moveDuration[i] = 0;
-    startTime[i] = -1;
-  }
-  
-  state = State::IDLE;
-  lastUpdate = millis();
-  initialized = true;
-  
-  // Move servos directly to their default positions (immediate, no interpolation)
-  for (int i = 0; i < num_servos; i++) {
-    position[i] = defaultPosition[i];
-    goalPosition[i] = defaultPosition[i];
-    moveDuration[i] = 0;
-    startTime[i] = -1;
-    detachedServos[i] = false;  // Reset detached state
-    applyPosition(i, defaultPosition[i]);
-  }
+  // Call the regular init() method to do the main initialization
+  init();
 }
 
 uint16_t ServoGroup::angleToPulse(uint8_t servo_index, int16_t angle) {

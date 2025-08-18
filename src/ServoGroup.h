@@ -4,7 +4,11 @@
 #include <Adafruit_PWMServoDriver.h>
 #include <Arduino.h>
 #include <Wire.h>
+#ifdef ESP32
+#include <ESP32Servo.h>
+#else
 #include <Servo.h>
+#endif
 
 // Macro to create arrays from brace-enclosed lists (Arduino compatible)
 #define SET_IDS(i2c, ...) do { \
