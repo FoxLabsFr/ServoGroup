@@ -16,7 +16,6 @@ It currently supports two types of servo groups:
 - [x] **Direct JSON status output** for easy integration with web interfaces
 - [x] **Support Standard PWM servo**
 - [ ] **Support mixed groups (I2C driven servo and classic PWM servo)**
-- [ ] **Support multiple servo groups in one project with IDs**
 
 ## 🏗️ Hardware & Specifications
 
