@@ -22,8 +22,9 @@ It currently supports two types of servo groups:
 
 **Required Hardware:**
 
-- **PCA9685 PWM Servo Driver** - (For I2C mode).
-- **Arduino-compatible board** - ESP32, Arduino Uno, etc.
+- **Arduino-compatible board** - ESP32, Arduino Uno, ESP8266, etc.
+- **PCA9685 PWM Servo Driver** - For I2C mode 
+- **Standard PWM Servos** - SG90, MG996R, etc. 
 
 ## 🛠️ Getting Started
 
