@@ -58,11 +58,14 @@
 
 class ServoGroup {
  public:
-  enum class State { IDLE, MOVING, DETACHED };
+  enum class State { IDLE, MOVING, DETACHED, ERROR };
   enum class Mode { I2C, DIRECT_PWM };
 
   ServoGroup();
   ~ServoGroup();
+  
+  // I2C configuration (optional - call before setIds if needed)
+  void configureI2C(int sda_pin = -1, int scl_pin = -1);
   
   // Arduino compatible initialization methods
   void setIds(uint8_t i2c_address, uint8_t ids[], uint8_t count);
@@ -79,6 +82,16 @@ class ServoGroup {
   template<uint8_t N>
   void setIds(uint8_t i2c_address, const uint8_t (&ids)[N]) {
     setIds(i2c_address, const_cast<uint8_t*>(ids), N);
+  }
+  
+  // Overload for int arrays (convert to uint8_t for I2C mode)
+  template<uint8_t N>
+  void setIds(uint8_t i2c_address, const int (&ids)[N]) {
+    uint8_t converted[N];
+    for (uint8_t i = 0; i < N; i++) {
+      converted[i] = static_cast<uint8_t>(ids[i]);
+    }
+    setIds(i2c_address, converted, N);
   }
   
   template<uint8_t N>
@@ -185,8 +198,11 @@ class ServoGroup {
     setInverts(converted, N);
   }
   
-  void init();
-  void init(Stream& debugStream);
+  bool init();
+  bool init(Stream& debugStream);
+  
+  // Check if I2C module is available
+  bool checkI2CConnection();
             
   void setPosition(uint8_t servo_index, int16_t angle, unsigned long delay);
   void setPositions(int16_t angles[], unsigned long delay);
@@ -208,6 +224,8 @@ class ServoGroup {
   Adafruit_PWMServoDriver pwm;
   uint8_t i2c_address;
   bool initialized = false;
+  int custom_sda_pin = -1;
+  int custom_scl_pin = -1;
   Mode mode = Mode::I2C;
   uint16_t* servoMinPulse;
   uint16_t* servoMaxPulse;

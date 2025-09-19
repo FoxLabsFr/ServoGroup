@@ -5,6 +5,8 @@ ServoGroup::ServoGroup() {
   i2c_address = 0x40;
   num_servos = 0;
   mode = Mode::I2C;
+  custom_sda_pin = -1;
+  custom_scl_pin = -1;
   servoMinPulse = nullptr;
   servoMaxPulse = nullptr;
   servoMinAngle = nullptr;
@@ -42,6 +44,15 @@ ServoGroup::~ServoGroup() {
   delete[] servoPins;
   delete[] servos;
   delete[] detachedServos;
+}
+
+void ServoGroup::configureI2C(int sda_pin, int scl_pin) {
+  custom_sda_pin = sda_pin;
+  custom_scl_pin = scl_pin;
+  
+  if (debugMode && debugStream) {
+    debugLog("I2C configuration: SDA=" + String(sda_pin) + ", SCL=" + String(scl_pin));
+  }
 }
 
 void ServoGroup::allocateArrays(uint8_t num_servos) {
@@ -180,38 +191,84 @@ void ServoGroup::debugLog(const String& message) {
   }
 }
 
-void ServoGroup::init() {
+bool ServoGroup::init() {
   debugMode = false;
   debugStream = nullptr;
   
   if (num_servos == 0) {
-    return;
+    state = State::ERROR;
+    return false;
+  }
+  
+  // Reset error state if retrying initialization
+  if (state == State::ERROR) {
+    debugLog("Retrying initialization...");
+    state = State::IDLE;
+    initialized = false;
   }
   
   if (mode == Mode::I2C) {
     // Only initialize Wire once - it's a global singleton
     static bool wireInitialized = false;
     if (!wireInitialized) {
-      Wire.begin();
-      wireInitialized = true;
+      bool i2c_success = false;
+      
+      if (custom_sda_pin != -1 && custom_scl_pin != -1) {
+        // Use custom I2C pins (ESP32 specific)
+        #ifdef ESP32
+        i2c_success = Wire.begin(custom_sda_pin, custom_scl_pin);
+        if (i2c_success) {
+          debugLog("I2C initialized with custom pins: SDA=" + String(custom_sda_pin) + ", SCL=" + String(custom_scl_pin));
+        } else {
+          debugLog("Error: Failed to initialize I2C with custom pins: SDA=" + String(custom_sda_pin) + ", SCL=" + String(custom_scl_pin));
+          state = State::ERROR;
+          initialized = false;
+          return false;
+        }
+        #else
+        Wire.begin();
+        i2c_success = true; // Assume success on non-ESP32 platforms
+        debugLog("Warning: Custom I2C pins not supported on this platform, using default pins");
+        #endif
+      } else {
+        // Use default I2C pins
+        #ifdef ESP32
+        i2c_success = Wire.begin();
+        #else
+        Wire.begin();
+        i2c_success = true; // Assume success on non-ESP32 platforms
+        #endif
+        
+        if (i2c_success) {
+          debugLog("I2C initialized with default pins");
+        } else {
+          debugLog("Error: Failed to initialize I2C with default pins");
+          state = State::ERROR;
+          initialized = false;
+          return false;
+        }
+      }
+      wireInitialized = i2c_success;
     }
 
     // Check if the PWM driver is connected
     Wire.beginTransmission(i2c_address);
     if (Wire.endTransmission() == 0) {
-      if (debugMode) {
-        debugLog("PWM driver 0x" + String(i2c_address, HEX) + " found on I2C bus.");
-      }
+      debugLog("PWM driver 0x" + String(i2c_address, HEX) + " found on I2C bus.");
+      
+      // Only initialize PWM driver if module is actually connected
+      // This prevents I2C read errors from pwm.begin(), setPWMFreq(), etc.
+      pwm.begin();
+      pwm.setPWMFreq(60);
+      pwm.setOscillatorFrequency(27000000);
+      
+      debugLog("PWM driver configured successfully");
     } else {
-      if (debugMode) {
-        debugLog("Error: PWM driver not found on I2C bus!");
-      }
-      return;
+      debugLog("Error: PWM driver 0x" + String(i2c_address, HEX) + " not found on I2C bus!");
+      state = State::ERROR;
+      initialized = false;
+      return false;
     }
-
-    pwm.begin();
-    pwm.setPWMFreq(60);
-    pwm.setOscillatorFrequency(27000000);
   } else {
     // Direct PWM mode
     for (int i = 0; i < num_servos; i++) {
@@ -225,33 +282,86 @@ void ServoGroup::init() {
     startTime[i] = -1;
   }
   
-  state = State::IDLE;
-  lastUpdate = millis();
-  initialized = true;
-  
-  // Move servos directly to their default positions (immediate, no interpolation)
-  for (int i = 0; i < num_servos; i++) {
-    position[i] = defaultPosition[i];
-    goalPosition[i] = defaultPosition[i];
-    moveDuration[i] = 0;
-    startTime[i] = -1;
-    detachedServos[i] = false;  // Reset detached state
-    applyPosition(i, defaultPosition[i]);
+  // Only set to IDLE and initialized if we're not in error state
+  if (state != State::ERROR) {
+    state = State::IDLE;
+    lastUpdate = millis();
+    initialized = true;
+    
+    // Move servos directly to their default positions (immediate, no interpolation)
+    for (int i = 0; i < num_servos; i++) {
+      position[i] = defaultPosition[i];
+      goalPosition[i] = defaultPosition[i];
+      moveDuration[i] = 0;
+      startTime[i] = -1;
+      detachedServos[i] = false;  // Reset detached state
+      applyPosition(i, defaultPosition[i]);
+    }
+    
+    return true; // Initialization successful
+  } else {
+    // In error state, just initialize internal arrays but don't mark as initialized
+    for (int i = 0; i < num_servos; i++) {
+      position[i] = defaultPosition[i];
+      goalPosition[i] = defaultPosition[i];
+      moveDuration[i] = 0;
+      startTime[i] = -1;
+      detachedServos[i] = false;
+    }
+    
+    return false; // Initialization failed
   }
 }
 
-void ServoGroup::init(Stream& debugStream) {
+bool ServoGroup::init(Stream& debugStream) {
   debugMode = true;
   this->debugStream = &debugStream;
   
   if (num_servos == 0) {
     debugLog("Error: No servos configured. Call setIds() first!");
-    return;
+    state = State::ERROR;
+    return false;
+  }
+  
+  // Reset error state if retrying initialization
+  if (state == State::ERROR) {
+    debugLog("Retrying initialization...");
+    state = State::IDLE;
+    initialized = false;
   }
   
   // Call the regular init() method to do the main initialization
-  init();
+  return init();
 }
+
+bool ServoGroup::checkI2CConnection() {
+  if (mode != Mode::I2C) {
+    return true; // Not applicable for PWM mode
+  }
+  
+  // Don't attempt I2C operations if we're already in error state due to I2C issues
+  // This prevents crashes when I2C is not properly initialized
+  if (state == State::ERROR) {
+    debugLog("I2C connection check skipped: already in error state");
+    return false;
+  }
+  
+  // Safely attempt I2C communication
+  Wire.beginTransmission(i2c_address);
+  uint8_t error = Wire.endTransmission();
+  bool connected = (error == 0);
+  
+  if (debugMode) {
+    if (connected) {
+      debugLog("I2C connection check: PWM driver 0x" + String(i2c_address, HEX) + " is available");
+    } else {
+      debugLog("I2C connection check: PWM driver 0x" + String(i2c_address, HEX) + " is not available (error: " + String(error) + ")");
+    }
+  }
+  
+  return connected;
+}
+
 
 uint16_t ServoGroup::angleToPulse(uint8_t servo_index, int16_t angle) {
   short a = angle;
@@ -272,6 +382,11 @@ uint16_t ServoGroup::angleToPulse(uint8_t servo_index, int16_t angle) {
 void ServoGroup::applyPosition(uint8_t servo_index, int16_t angle) {
   if (!initialized) {
     debugLog("Error: ServoGroup not initialized!");
+    return;
+  }
+  
+  if (state == State::ERROR) {
+    debugLog("Error: ServoGroup in error state. Check I2C connection or call retryInit()");
     return;
   }
   
@@ -371,6 +486,11 @@ void ServoGroup::setPositions(int16_t angles[], unsigned long delay) {
 void ServoGroup::detach(uint8_t servo_index) {
   if (servo_index < num_servos) {
     if (mode == Mode::I2C) {
+      // Check if we're in error state before attempting I2C operations
+      if (state == State::ERROR || !initialized) {
+        debugLog("Cannot detach servo: ServoGroup in error state or not initialized");
+        return;
+      }
       // Set PWM to 0 to detach the servo (stops sending pulses)
       pwm.setPWM(servoId[servo_index], 0, 0);
     } else {
@@ -398,6 +518,11 @@ void ServoGroup::detach(uint8_t servo_index) {
 void ServoGroup::detachAll() {
   for (int i = 0; i < num_servos; i++) {
     if (mode == Mode::I2C) {
+      // Check if we're in error state before attempting I2C operations
+      if (state == State::ERROR || !initialized) {
+        debugLog("Cannot detach servos: ServoGroup in error state or not initialized");
+        break; // Exit loop, don't attempt any I2C operations
+      }
       // Set PWM to 0 to detach all servos
       pwm.setPWM(servoId[i], 0, 0);
     } else {
@@ -460,6 +585,9 @@ String ServoGroup::getServoJson() {
       break;
     case State::DETACHED:
       json += "detached";
+      break;
+    case State::ERROR:
+      json += "error";
       break;
   }
   
